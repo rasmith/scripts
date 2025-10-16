@@ -21,9 +21,10 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    --llmd)
-      LLMD=YES
+    -m|--model-dir)
+      MODEL_DIR="$2"
       shift # past argument
+      shift # past value
       ;;
     --which-vllm-repo)
       WHICH="$2"
@@ -55,6 +56,10 @@ if [[ -z "$IMAGE_NAME" ]]; then
   IMAGE_NAME="${USER_NAME}_vllm_${WHICH}"
 fi
 
+if [[ -z "$MODEL_DIR" ]]; then
+  MODEL_DIR=/data/models
+fi
+
 REPO_PATH=$HOME/git/$REPO_NAME
 
 echo "USER_NAME=$USER_NAME"
@@ -68,27 +73,12 @@ else
   echo "REPO_NAME=$REPO_NAME"
 fi
 
-if [[ "$LLMD" == "YES" ]]; then
-  sudo docker run -d -it --name=${USER_NAME}_llmd_container \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v /data/models:/models \
-    -v $HOME/git/pd_container/pd_examples:/pd_examples \
-    -v $HOME/scripts:/scripts \
-    -v $HOME/source:/source \
-    --device=/dev/kfd --device=/dev/dri \
-    --group-add video \
-    --group-add render \
-    --network host --privileged --shm-size=10G --ulimit \
-    memlock=-1 --ulimit stack=67108864 -w /pd_examples \
-    --cap-add CAP_SYS_PTRACE --ipc host ${USER_NAME}_llmd
-else
-  sudo docker run -it --detach --ipc=host --device=/dev/kfd \
+sudo docker run -it --detach --ipc=host --device=/dev/kfd \
     --device=/dev/dri --shm-size=64G --cap-add=SYS_PTRACE \
     --security-opt seccomp=unconfined \
     --ulimit core=0:0 \
     -v /$HOME/source:/source \
-    -v /$HOME/scripts:/scripts \
+    -v /$HOME/git/scripts:/scripts \
     -v $REPO_PATH:/$REPO_NAME \
-    -v /data/models:/models \
+    -v $MODEL_DIR:/models \
     -w /$REPO_NAME --name=$CONTAINER_NAME $IMAGE_NAME
-fi
