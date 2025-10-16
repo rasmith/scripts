@@ -5,7 +5,7 @@ if [[ -n "$1" ]]; then
 	echo "Using arch $1"
 fi
 
-python setup.py clean --all
+python3 setup.py clean --all
 find . -name *.so -delete
 rm -Rf build
-python setup.py develop
+python3 setup.py develop
