@@ -9,6 +9,6 @@ curl http://localhost:8000/v1/completions \
     -d "{ 
         \"model\": \"$MODEL\",
         \"prompt\": \"$PROMPT\",
-        \"max_tokens\": 7,
+        \"max_tokens\": 1024,
         \"temperature\": 0
     }"
