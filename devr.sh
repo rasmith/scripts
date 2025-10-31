@@ -19,12 +19,12 @@ if [[ -n $BUILD_OR_CREATE ]]; then
     exit
   fi
 else
-  echo "Attempting to run container $CONTAINER.."
+  echo "Attempting to run container $CONTAINER..."
 fi
 
 if docker ps -a | grep -q $CONTAINER; then
-  read -p "Container ($CONTAINER) already exists, delete it? " YESNO
-  if [[ $YESNO = 'y' ]]; then
+  read -p "Container ($CONTAINER) already exists, delete it? " YES_OR_NO
+  if [[ $YES_OR_NO = 'y' ]]; then
     echo "Deleting container: $CONTAINER ..."
     docker rm -f $CONTAINER
   else
