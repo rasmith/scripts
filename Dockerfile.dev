@@ -1,0 +1,29 @@
+# Docker container for development
+FROM ubuntu:22.04
+
+ARG UID
+ARG GID
+ARG USER
+ARG CONFIG_REPO=https://github.com/rasmith/config.git
+
+RUN apt-get update -y 
+RUN apt-get install git less curl bc vim psmisc htop language-pack-en wget libpq-dev ssh -y
+RUN apt-get install vim ripgrep -y
+RUN apt-get install python-is-python3 -y
+RUN update-locale
+RUN apt-get install sudo
+
+RUN addgroup --gid $GID $USER
+RUN useradd -l -u $UID -g $GID $USER
+RUN mkdir -p /home/$USER && chown -R $USER:$USER /home/$USER
+RUN adduser $USER sudo
+RUN echo "$USER    ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USER
+
+USER $USER
+ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-
+RUN echo 'alias ls="ls --color"' >> ~/.bashrc
+RUN mkdir ~/setup && cd ~/setup && git clone $CONFIG_REPO \
+    && cd config && echo "\n" | ./setup.sh
+
+CMD ["/usr/bin/bash"]

@@ -21,6 +21,7 @@ export VLLM_ROCM_USE_AITER_MHA=1
 export VLLM_ROCM_USE_TRITON_ROPE=1
 #############################################
 
+export VLLM_TORCH_PROFILER_DIR=prof
 vllm serve --model $MODEL \
   --tensor-parallel-size 8 \
   --max-num-batched-tokens 32768 \
