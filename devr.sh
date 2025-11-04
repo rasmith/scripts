@@ -12,7 +12,7 @@ BUILD_OR_CREATE=$1
 if [[ -n $BUILD_OR_CREATE ]]; then
   if [[ $BUILD_OR_CREATE = "build" ]]; then
     echo "Building container: $CONTAINER ..."
-    docker build -f Dockerfile.dev -t ransmith_dev \
+    docker build -f Dockerfile.dev -t $IMAGE \
                     --build-arg UID=$(id -g) \
                     --build-arg GID=$(id -u) \
                     --build-arg USER=$USER  .
@@ -40,4 +40,4 @@ sudo docker run -it --ipc=host --device=/dev/kfd \
     --ulimit core=0:0 \
     -v $HOME/source:/source \
     -v $HOME/git:/git \
-    -w /git --name=ransmith_dev_container ransmith_dev
+    -w /git --name=$CONTAINER $IMAGE
