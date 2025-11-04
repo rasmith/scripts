@@ -14,7 +14,7 @@ export VLLM_ROCM_USE_AITER_MHA=1
 export VLLM_ROCM_USE_TRITON_ROPE=1
 #############################################
 
-num_prompts=10
+num_prompts=6
 model=$1
 results_folder=bench_serve
 qps=inf
