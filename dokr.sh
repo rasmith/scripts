@@ -75,7 +75,8 @@ fi
 
 sudo docker run -it --detach --ipc=host --device=/dev/kfd \
     --device=/dev/dri --shm-size=64G --cap-add=SYS_PTRACE \
-    --security-opt seccomp=unconfined \
+    --network host --security-opt seccomp=unconfined \
+    --privileged \
     --ulimit core=0:0 \
     -v /$HOME/source:/source \
     -v /$HOME/git/scripts:/scripts \
