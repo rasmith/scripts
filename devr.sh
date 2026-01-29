@@ -13,8 +13,8 @@ if [[ -n $BUILD_OR_CREATE ]]; then
   if [[ $BUILD_OR_CREATE = "build" ]]; then
     echo "Building container: $CONTAINER ..."
     docker build -f Dockerfile.dev -t $IMAGE \
-                    --build-arg UID=$(id -g) \
-                    --build-arg GID=$(id -u) \
+                    --build-arg UID=$(id -u) \
+                    --build-arg GID=$(id -g) \
                     --build-arg USER=$USER  .
     exit
   fi
