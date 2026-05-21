@@ -26,6 +26,16 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    -a|--atom-repo)
+      ATOM_REPO_NAME="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -t|--aiter-repo)
+      AITER_REPO_NAME="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --which-vllm-repo)
       WHICH="$2"
       shift # past argument
@@ -61,10 +71,24 @@ if [[ -z "$MODEL_DIR" ]]; then
 fi
 
 REPO_PATH=$HOME/git/$REPO_NAME
+ATOM_REPO_PATH=$HOME/git/$ATOM_REPO_NAME
+AITER_REPO_PATH=$HOME/git/$AITER_REPO_NAME
+
+EXTRA_REPO_MAPPINGS=""
+
+if [[ -n "$ATOM_REPO_NAME" ]]; then
+  EXTRA_REPO_MAPPINGS="$EXTRA_REPO_MAPPINGS -v $ATOM_REPO_PATH:/$ATOM_REPO_NAME"
+fi
+
+if [[ -n "$AITER_REPO_NAME" ]]; then
+  EXTRA_REPO_MAPPINGS="$EXTRA_REPO_MAPPINGS -v $AITER_REPO_PATH:/$AITER_REPO_NAME"
+fi
+
 
 echo "USER_NAME=$USER_NAME"
 echo "CONTAINER_NAME=$CONTAINER_NAME"
 echo "IMAGE_NAME=$IMAGE_NAME"
+echo "EXTRA_REPO_MAPPINGS=$EXTRA_REPO_MAPPINGS"
 # Just map the git directory if no repo name provided.
 if [[ -z $REPO_NAME ]]; then
   echo "Mapping git directory."
@@ -82,5 +106,7 @@ sudo docker run -it --detach --ipc=host --device=/dev/kfd \
     -v /$HOME/source:/source \
     -v /$HOME/git/scripts:/scripts \
     -v $REPO_PATH:/$REPO_NAME \
+    $EXTRA_REPO_MAPPINGS \
     -v $MODEL_DIR:/models \
+    --entrypoint /bin/bash \
     -w /$REPO_NAME --name=$CONTAINER_NAME $IMAGE_NAME
