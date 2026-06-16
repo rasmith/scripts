@@ -45,6 +45,7 @@ do
                  --port $PORT \
                  $EXTRA_VLLM_SERVE_FLAGS"  
       echo "Running with ISL=$INPUT_LEN, OSL=$OUTPUT_LEN, TP=$NUM_GPU"
+
       if [[ "$DRY_RUN" == "1" ]]; then
         echo "$VLLM_SERVE_CMD"
       else 
@@ -69,8 +70,8 @@ do
 
       if [[ "$DRY_RUN" == "1" ]]; then
         echo "$VLLM_BENCH_SERVE_CMD"
-        TEST_OUTPUT_COMMAND="cat bench_output.txt"
-        TEST_OUTPUT=$(${TEST_OUTPUT_COMMAND})
+#        TEST_OUTPUT_COMMAND="cat bench_output.txt"
+#        TEST_OUTPUT=$(${TEST_OUTPUT_COMMAND})
       else
         $VLLM_BENCH_SERVE_CMD 2>&1 > $BENCH_OUTPUT_FILE
       fi
@@ -95,8 +96,8 @@ do
       # Kill all vLLM jobs.
       if [[ "$DRY_RUN" == "0" ]]; then
         ps -a | grep -i vllm | awk '{print $1}' | xargs -I % kill -9 %
+        sleep 10
       fi
-      sleep 10
     done
   done
 done

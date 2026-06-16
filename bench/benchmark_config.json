@@ -1,0 +1,16 @@
+{
+    "vllm_serve_log": "/bench/vllm_serve.log",
+    "vllm_bench_serve_log": "/bench/vllm_bench_serve.log",
+    "server_wait_time": 3600,
+    "port": 8010,
+    "profile": false,
+    "profile_output_dir": "/bench/prof",
+    "model": "/models/MiniMax-M2.5",
+    "input_lens": [128, 1024, 8192],
+    "output_lens": [128, 1024, 8192],
+    "num_gpus": [2, 4, 8],
+    "batch_sizes": [1, 10, 100],
+    "bench_json_file": "/bench/bench_output.json",
+    "output_csv": "/bench/results.csv",
+    "output_json": "/bench/results.json"
+}

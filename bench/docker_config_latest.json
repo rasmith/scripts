@@ -1,0 +1,8 @@
+{
+    "hf_token": "",
+    "bench_dir": "~/git/vllm-upstream-test",
+    "model_dir": "/data/models",
+    "images": [
+        "vllm/vllm-openai-rocm:latest"
+    ]
+}

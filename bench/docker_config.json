@@ -1,0 +1,16 @@
+{
+    "hf_token": "",
+    "bench_dir": "~/git/vllm-upstream-test",
+    "model_dir": "/data/models",
+    "images": [
+        "vllm/vllm-openai-rocm:v0.18.0",
+        "vllm/vllm-openai-rocm:v0.18.1",
+        "vllm/vllm-openai-rocm:v0.19.0",
+        "vllm/vllm-openai-rocm:v0.19.1",
+        "vllm/vllm-openai-rocm:v0.20.0",
+        "vllm/vllm-openai-rocm:v0.20.1",
+        "vllm/vllm-openai-rocm:v0.20.2",
+        "vllm/vllm-openai-rocm:v0.21.0",
+        "vllm/vllm-openai-rocm:v0.22.0"
+    ]
+}
