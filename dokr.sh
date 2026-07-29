@@ -1,4 +1,4 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 
 # NOTE: Script assumes there is a $HOME/git directory to map to.
 
@@ -35,6 +35,15 @@ while [[ $# -gt 0 ]]; do
       AITER_REPO_NAME="$2"
       shift # past argument
       shift # past value
+      ;;
+    -e|--env)
+      ENV_VARS+=("$2")
+      shift # past argument
+      shift # past value
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift # past argument
       ;;
     --which-vllm-repo)
       WHICH="$2"
@@ -97,7 +106,7 @@ else
   echo "REPO_NAME=$REPO_NAME"
 fi
 
-sudo docker run -it --detach --ipc=host --device=/dev/kfd \
+DOCKER_CMD=(sudo docker run -it --detach --ipc=host --device=/dev/kfd \
     --device=/dev/dri --shm-size=64G --cap-add=SYS_PTRACE \
     --network host --security-opt seccomp=unconfined \
     --privileged \
@@ -105,8 +114,22 @@ sudo docker run -it --detach --ipc=host --device=/dev/kfd \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v /$HOME/source:/source \
     -v /$HOME/git/scripts:/scripts \
-    -v $REPO_PATH:/$REPO_NAME \
-    $EXTRA_REPO_MAPPINGS \
-    -v $MODEL_DIR:/models \
+    -v $REPO_PATH:/$REPO_NAME)
+
+if [[ -n "$EXTRA_REPO_MAPPINGS" ]]; then
+  DOCKER_CMD+=($EXTRA_REPO_MAPPINGS)
+fi
+
+for env_var in "${ENV_VARS[@]}"; do
+  DOCKER_CMD+=(-e "$env_var")
+done
+
+DOCKER_CMD+=(-v $MODEL_DIR:/models \
     --entrypoint /bin/bash \
-    -w /$REPO_NAME --name=$CONTAINER_NAME $IMAGE_NAME
+    -w /$REPO_NAME --name=$CONTAINER_NAME $IMAGE_NAME)
+
+if [[ -n "$DRY_RUN" ]]; then
+  echo "${DOCKER_CMD[@]}"
+else
+  "${DOCKER_CMD[@]}"
+fi
