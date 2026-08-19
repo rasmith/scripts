@@ -5,8 +5,9 @@ if [[ -n "$1" ]]; then
 	echo "Using arch $1"
 fi
 
-#export MAX_JOBS=16
+git config --global --add safe.directory $(realpath $(pwd))
+
 python3 setup.py clean --all
 find . -name *.so -delete
 rm -Rf build
-python3 setup.py develop
+MAX_JOBS=128 python3 setup.py develop
