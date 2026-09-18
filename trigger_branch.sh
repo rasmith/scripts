@@ -18,6 +18,17 @@
 #   # Direct branch run (dry run)
 #   ./trigger_branch.sh run --fork rasmith/vllm --branch therock-nightly --token $(cat ~/claude/.bk_token) --message "Full CI" --dry-run
 #
+#   # Overlay from a yaml, with a top-level copy list that renames files in the
+#   # checkout after every overlay has landed:
+#   #   overlays:
+#   #     - repo: rasmith/vllm:rock-312-ci
+#   #       files:
+#   #         - docker/Dockerfile.rock
+#   #   copy:
+#   #     - docker/Dockerfile.rock docker/Dockerfile.rocm
+#   ./trigger_branch.sh overlay --source 4am --destination rasmith/vllm:therock-nightly \
+#       --overlays overlays.yaml --token $(cat ~/claude/.bk_token) --message "..."
+#
 #   # Overlay: take 4am nightly, overlay specific files from a branch, push and trigger
 #   ./trigger_branch.sh overlay --source 4am --target rasmith/vllm:rock-312-ci \
 #       --destination rasmith/vllm:therock-nightly \
@@ -158,6 +169,34 @@ for i, e in enumerate(entries):
 ' "$path"
 }
 
+# Parse the top-level "copy" list of an --overlays yaml into "src dest" pairs,
+# one per line. Both paths are repo-relative; the copy happens inside the
+# checkout after every overlay has been applied, so src is whatever an overlay
+# just put there.
+#
+#   copy:
+#     - docker/Dockerfile.rock docker/Dockerfile.rocm
+#     - docker/Dockerfile.rock_base docker/Dockerfile.rocm_base
+parse_copies_yaml() {
+    local path="$1"
+    python3 -c '
+import sys, yaml
+
+with open(sys.argv[1]) as fh:
+    doc = yaml.safe_load(fh) or {}
+
+entries = (doc.get("copy") or []) if isinstance(doc, dict) else []
+if not isinstance(entries, list):
+    sys.exit("copy: expected a list of \"<src> <dest>\" entries")
+
+for i, e in enumerate(entries):
+    if not isinstance(e, str) or len(e.split()) != 2:
+        sys.exit(f"copy[{i}]: expected \"<src> <dest>\", got {e!r}")
+    src, dest = e.split()
+    print(src + " " + dest)
+' "$path"
+}
+
 # Parse a --direct-overlays yaml into "src dest" pairs, one per line.
 # Mirrors parse_overlays_yaml, but files come from the local filesystem
 # instead of a git ref, so "repo" becomes "root".
@@ -199,6 +238,39 @@ for i, e in enumerate(entries):
         # "src dest": dest is the repo-relative path, which is the entry itself.
         print(os.path.join(root, f) + " " + f)
 ' "$path"
+}
+
+# Wait until a fork commit is visible from vllm-project/vllm.
+#
+# Buildkite agents clone upstream, not the fork, and fetch the commit by sha.
+# A cross-fork object takes a moment to show up in the upstream network, and
+# the agent only retries 3 times within seconds -- so trigger too early and
+# bootstrap dies with "upload-pack: not our ref".
+wait_for_upstream_visibility() {
+    local sha="$1" tries=30 i rc=1
+    local upstream="https://github.com/vllm-project/vllm.git"
+    # Probe from a scratch repo: the sync repo already has the object locally,
+    # and `ls-remote` matches ref names rather than shas, so neither would
+    # actually test what the agent does.
+    local probe
+    probe="$(mktemp -d)"
+    git init -q "$probe"
+    git -C "$probe" remote add origin "$upstream"
+
+    echo "Waiting for $sha to be visible from upstream..."
+    for ((i = 1; i <= tries; i++)); do
+        if git -C "$probe" fetch -q --depth 1 origin "$sha" >/dev/null 2>&1; then
+            echo "  visible after ${i} check(s)"
+            rc=0
+            break
+        fi
+        sleep 5
+    done
+    rm -rf "$probe"
+
+    [[ "$rc" -eq 0 ]] && return 0
+    echo "WARNING: $sha not visible from upstream after $((tries * 5))s;" \
+         "triggering anyway -- bootstrap may fail to fetch it." >&2
 }
 
 # Parse org/repo:branch into parts
@@ -247,7 +319,7 @@ cmd_run() {
 # ---- Mode: overlay ----
 
 cmd_overlay() {
-    local source="" target="" destination="" message="" token="" dry_run=0 overlay_paths="" filter_groups=""
+    local source="" target="" destination="" message="" token="" dry_run=0 no_buildkite=0 overlay_paths="" filter_groups=""
     local overlays_file="" filter_groups_file=""
     local direct_root="" direct_overlay_paths="" direct_overlays_file=""
 
@@ -266,8 +338,9 @@ cmd_overlay() {
             --message) message="$2"; shift 2 ;;
             --token) token="$2"; shift 2 ;;
             --dry-run) dry_run=1; shift ;;
+            --no-buildkite) no_buildkite=1; shift ;;
             -h|--help)
-                echo "Usage: $0 overlay --source <ref|4am> --destination <org/repo:branch> --token <token> --message <msg> [--target <org/repo:branch> --overlay-paths <files>] [--overlays <file.yaml>] [--direct-root <dir> --direct-overlay-paths <files>] [--direct-overlays <file.yaml>] [--filter-groups <all|none|groups>] [--dry-run]"
+                echo "Usage: $0 overlay --source <ref|4am> --destination <org/repo:branch> --token <token> --message <msg> [--target <org/repo:branch> --overlay-paths <files>] [--overlays <file.yaml>] [--direct-root <dir> --direct-overlay-paths <files>] [--direct-overlays <file.yaml>] [--filter-groups <all|none|groups>] [--dry-run] [--no-buildkite]"
                 echo ""
                 echo "  --target/--overlay-paths  Overlay files from one branch"
                 echo "  --overlays <file.yaml>    Overlay files from any number of branches,"
@@ -282,6 +355,13 @@ cmd_overlay() {
                 echo "        files:"
                 echo "          - vllm/v1/attention/backends/rocm_attn.py"
                 echo ""
+                echo "                            A top-level 'copy' list copies files inside"
+                echo "                            the checkout, after every overlay has landed:"
+                echo ""
+                echo "    copy:"
+                echo "      - docker/Dockerfile.rock docker/Dockerfile.rocm"
+                echo "      - docker/Dockerfile.rock_base docker/Dockerfile.rocm_base"
+                echo ""
                 echo "  --direct-root/--direct-overlay-paths  Copy files from a local"
                 echo "                            directory instead of a git ref."
                 echo "  --direct-overlays <file.yaml>  Same, from any number of roots."
@@ -292,8 +372,12 @@ cmd_overlay() {
                 echo "          - .buildkite/test-amd.yaml"
                 echo ""
                 echo "  Direct overlays are applied after the git overlays, so they win"
-                echo "  on any overlapping path. At least one overlay of any kind is"
-                echo "  required."
+                echo "  on any overlapping path. Copies run after both. At least one"
+                echo "  overlay of any kind is required."
+                echo ""
+                echo "  --dry-run       Build the commit, then stop: no push, no build."
+                echo "  --no-buildkite  Build the commit and push it, but do not"
+                echo "                  trigger a build -- for checking what lands."
                 echo ""
                 echo "  --filter-groups all    Keep all test groups (default)"
                 echo "  --filter-groups none   Remove all test groups"
@@ -309,7 +393,9 @@ cmd_overlay() {
 
     [[ -n "$source" ]] || die "--source required"
     [[ -n "$destination" ]] || die "--destination required (e.g. rasmith/vllm:run_rock_10)"
-    [[ -n "$token" ]] || die "--token required"
+    # The token is only for Buildkite: the 4am nightly lookup and the trigger.
+    [[ -n "$token" || ( "$no_buildkite" == "1" && "$source" != "4am" ) ]] \
+        || die "--token required"
     [[ -n "$message" ]] || die "--message required"
     if [[ -n "$target" && -z "$overlay_paths" ]]; then die "--target requires --overlay-paths"; fi
     if [[ -n "$overlay_paths" && -z "$target" ]]; then die "--overlay-paths requires --target"; fi
@@ -372,6 +458,14 @@ cmd_overlay() {
             || die "Could not parse --overlays file: $overlays_file"
         [[ -n "$from_yaml" ]] || die "No overlay entries found in $overlays_file"
         overlay_specs="${overlay_specs:+$overlay_specs$'\n'}$from_yaml"
+    fi
+
+    # Copies from the --overlays yaml: "src dest" per line, both repo-relative.
+    # Applied inside the checkout after every overlay has landed.
+    local copy_specs=""
+    if [[ -n "$overlays_file" ]]; then
+        copy_specs=$(parse_copies_yaml "$overlays_file") \
+            || die "Could not parse copy entries in --overlays file: $overlays_file"
     fi
 
     # Build the direct overlay list: "src dest" per line, src absolute.
@@ -476,6 +570,24 @@ cmd_overlay() {
         done <<< "$direct_specs"
     fi
 
+    # Copies: last, after every overlay (git and direct) has landed, so the
+    # source can be a file an overlay just wrote -- e.g. a branch supplies
+    # docker/Dockerfile.rock and it lands as docker/Dockerfile.rocm.
+    if [[ -n "${copy_specs//[[:space:]]/}" ]]; then
+        echo "Copying files:"
+        local csrc cdest
+        while read -r csrc cdest; do
+            [[ -n "$csrc" ]] || continue
+            [[ -f "$SYNC_REPO_DIR/$csrc" ]] \
+                || die "Copy source not in checkout: $csrc"
+            mkdir -p "$SYNC_REPO_DIR/$(dirname "$cdest")"
+            cp "$SYNC_REPO_DIR/$csrc" "$SYNC_REPO_DIR/$cdest" \
+                || die "Could not copy $csrc -> $cdest"
+            git -C "$SYNC_REPO_DIR" add "$cdest"
+            echo "  $cdest <- $csrc"
+        done <<< "$copy_specs"
+    fi
+
     # Filter test groups if requested
     local test_amd="$SYNC_REPO_DIR/.buildkite/test-amd.yaml"
     local filter_script="$HOME/claude/runs/filter_test_groups.py"
@@ -519,6 +631,14 @@ cmd_overlay() {
     if [[ "$direct_count" -gt 0 ]]; then
         overlay_refs="${overlay_refs:+$overlay_refs, }${direct_count} direct file(s)"
     fi
+    local copy_count=0
+    while read -r csrc cdest; do
+        [[ -n "$csrc" ]] || continue
+        copy_count=$((copy_count + 1))
+    done <<< "$copy_specs"
+    if [[ "$copy_count" -gt 0 ]]; then
+        overlay_refs="${overlay_refs:+$overlay_refs, }${copy_count} copy(ies)"
+    fi
     git -C "$SYNC_REPO_DIR" \
         -c user.name="trigger-branch" -c user.email="trigger-branch@local" \
         commit --allow-empty -q -m "overlay: ${overlay_refs} on ${source_commit:0:9}"
@@ -537,6 +657,18 @@ cmd_overlay() {
     else
         echo "Force-pushing $dest_branch -> $dest_url"
         git -C "$SYNC_REPO_DIR" push -f "$dest_remote" "$dest_branch"
+
+        if [[ "$no_buildkite" == "1" ]]; then
+            # Pushed, but no build: nothing will fetch the commit, so skip the
+            # upstream-visibility wait too.
+            echo ""
+            echo "--no-buildkite: pushed, not triggering a build."
+            echo "  Branch: https://github.com/${dest_org_repo}/tree/${dest_branch}"
+            echo "  Commit: $derived"
+            return 0
+        fi
+
+        wait_for_upstream_visibility "$derived"
 
         local bk_branch="https://github.com/${dest_org_repo}/tree/${dest_branch}"
         trigger_build "$token" "$derived" "$bk_branch" "$message" "0"
