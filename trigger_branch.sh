@@ -13,10 +13,10 @@
 #
 # Examples:
 #   # Direct branch run (default: triggers)
-#   ./trigger_branch.sh run --fork rasmith/vllm --branch therock-nightly --token $(cat ~/claude/.bk_token) --message "Full CI"
+#   ./trigger_branch.sh run --fork rasmith/vllm --branch therock-nightly --token $(cat ~/tokens/.bk_token) --message "Full CI"
 #
 #   # Direct branch run (dry run)
-#   ./trigger_branch.sh run --fork rasmith/vllm --branch therock-nightly --token $(cat ~/claude/.bk_token) --message "Full CI" --dry-run
+#   ./trigger_branch.sh run --fork rasmith/vllm --branch therock-nightly --token $(cat ~/tokens/.bk_token) --message "Full CI" --dry-run
 #
 #   # Overlay from a yaml, with a top-level copy list that renames files in the
 #   # checkout after every overlay has landed:
@@ -27,13 +27,13 @@
 #   #   copy:
 #   #     - docker/Dockerfile.rock docker/Dockerfile.rocm
 #   ./trigger_branch.sh overlay --source 4am --destination rasmith/vllm:therock-nightly \
-#       --overlays overlays.yaml --token $(cat ~/claude/.bk_token) --message "..."
+#       --overlays overlays.yaml --token $(cat ~/tokens/.bk_token) --message "..."
 #
 #   # Overlay: take 4am nightly, overlay specific files from a branch, push and trigger
 #   ./trigger_branch.sh overlay --source 4am --target rasmith/vllm:rock-312-ci \
 #       --destination rasmith/vllm:therock-nightly \
 #       --overlay-paths "docker/Dockerfile.rocm docker/Dockerfile.rocm_base requirements/build/rocm.txt requirements/test/rocm.in requirements/test/rocm.txt" \
-#       --token $(cat ~/claude/.bk_token) --message "AMD Full CI Run - TheRock 312"
+#       --token $(cat ~/tokens/.bk_token) --message "AMD Full CI Run - TheRock 312"
 
 set -euo pipefail
 

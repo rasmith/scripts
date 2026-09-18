@@ -9,8 +9,8 @@
 set -x
 
 BK_GET_IMAGE=$HOME/git/scripts/bk_get_build_image.py
-BK_TOKEN_FILE=${BK_TOKEN_FILE:-$HOME/claude/.bk_token}
-HF_TOKEN_FILE=${HF_TOKEN_FILE:-$HOME/claude/.hf_token}
+BK_TOKEN_FILE=${BK_TOKEN_FILE:-$HOME/tokens/.bk_token}
+HF_TOKEN_FILE=${HF_TOKEN_FILE:-$HOME/tokens/.hf_token}
 
 DOKR=$HOME/git/scripts/dokr.sh
 DOCKER_PULL=~/claude/docker_pull.sh
