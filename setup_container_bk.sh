@@ -39,7 +39,7 @@ git clone git@github.com:rasmith/vllm.git ~/git/$REPO_NAME
 CONTAINER_HASH=$($DOKR -i $IMAGE -r $REPO_NAME -c $CONTAINER_NAME \
                        -e HF_TOKEN=$(cat $HF_TOKEN_FILE) | tail -1)
 
-GFX_ARCH=$(rocm_agent_enumerator | head -1)
+GFX_ARCH=$(rocm_agent_enumerator | grep -E 'gfx90a|gfx942|gfx950' | head -1)
 
 docker exec $CONTAINER_HASH bash -c "cd /$REPO_NAME && pip uninstall -y vllm && \
                                         /scripts/rebuild.sh $GFX_ARCH"
