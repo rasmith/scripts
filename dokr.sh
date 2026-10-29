@@ -45,6 +45,10 @@ while [[ $# -gt 0 ]]; do
       DRY_RUN=1
       shift # past argument
       ;;
+    --no-terminal)
+      NO_TERMINAL=1
+      shift # past argument
+      ;;
     --which-vllm-repo)
       WHICH="$2"
       shift # past argument
@@ -106,7 +110,14 @@ else
   echo "REPO_NAME=$REPO_NAME"
 fi
 
-DOCKER_CMD=(sudo docker run -it --detach --ipc=host --device=/dev/kfd \
+# Scripts run without a terminal, so --no-terminal drops -t. Keep -i: its open stdin is what
+# keeps the detached /bin/bash entrypoint running.
+TTY_FLAGS=-it
+if [[ -n "$NO_TERMINAL" ]]; then
+  TTY_FLAGS=-i
+fi
+
+DOCKER_CMD=(sudo docker run $TTY_FLAGS --detach --ipc=host --device=/dev/kfd \
     --device=/dev/dri --shm-size=64G --cap-add=SYS_PTRACE \
     --network host --security-opt seccomp=unconfined \
     --privileged \

@@ -4,6 +4,8 @@ import numpy as np
 SHORT_TEST_SUMMARY_INFO_LINE = "=========================== short test summary info ============================"
 
 
+is_info_line = np.vectorize(lambda x: "short test summary info" in x)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", type=str, default="", required=True)
@@ -13,8 +15,8 @@ def main():
     with open(filename, "r") as f:
         lines = f.read().splitlines()
         numpy_lines = np.array(lines)
-        summary_info_line_locations = np.where(
-            numpy_lines == SHORT_TEST_SUMMARY_INFO_LINE)[0]
+        print(f"len(numpy_lines)={len(numpy_lines)}")
+        summary_info_line_locations = np.where(is_info_line(numpy_lines))[0]
         for location in summary_info_line_locations:
             i = location + 1
             while lines[i].startswith("FAILED"):
